@@ -243,7 +243,6 @@ module.exports = function (robot) {
         var projectName = 'Unknown project';
         
         _.each(projects, function(project, projectIndex){
-            console.log(project);
             if(project === id) {
                 projectName = projectIndex;
             }
@@ -270,11 +269,8 @@ module.exports = function (robot) {
      */
     var handleApiError = function (msg, error) {
 
-        console.log("OK THERE SHOULD BE AN ERROR");
-        //msg.send('Oops, something went wrong. ' + error.message);
-
         return 'Oops, something went wrong. ' + error.message;
-        //return true;
+
     };
 
     /*
@@ -299,7 +295,6 @@ module.exports = function (robot) {
         fs.writeFile(configFilePath, JSON.stringify(CONFIG), function (err) {
             if (err) {
                 msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
-                console.log(err);
             } else {
                 msg.send('Successfully updated axosoft.config.json.');
             }
@@ -327,7 +322,6 @@ module.exports = function (robot) {
         fs.writeFile(configFilePath, JSON.stringify(CONFIG), function (err) {
             if (err) {
                 msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
-                console.log(err);
             } else {
                 msg.send('Successfully updated axosoft.config.json.');
             }
@@ -431,7 +425,6 @@ module.exports = function (robot) {
 
         robot.http(API.WORK_LOGS + '?start_date=' + fromDate + '&end_date=' + toDate + '&access_token=' + CONFIG.ACCESS_TOKEN).get()(function (err, res, body) {
             body = JSON.parse(body);
-            //console.log(body);
             for (var i = 0; i < body.data.length; i++) {
                 processLogUser(body.data[i]);
             }

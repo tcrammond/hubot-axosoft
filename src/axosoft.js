@@ -330,9 +330,7 @@ module.exports = function (robot) {
     });
 
     /*
-
      WORK LOGS
-
      */
     robot.respond(/axosoft work logs from (.*)( to (.*))?/, function (msg) {
 

@@ -309,6 +309,7 @@ module.exports = function (robot) {
             return;
         }
 
+        url = url.replace('http://', '').replace('https://', '');
         url = 'https://' + url;
 
         if(validUrl.is_https_uri(url) === null || url.substr(-4, 4) !== '.com') {

@@ -60,10 +60,10 @@ Lists work logs submitted on the given day, grouped by user and item.
 
 Example usage & supported parameters
 ```
-hubot ontime work logs from today
-hubot ontime work logs from yesterday
-hubot ontime work logs from monday
-hubot ontime work logs from 2015-01-13
+hubot axosoft work logs from today
+hubot axosoft work logs from yesterday
+hubot axosoft work logs from monday
+hubot axosoft work logs from 2015-01-13
 ```
 
 Output:

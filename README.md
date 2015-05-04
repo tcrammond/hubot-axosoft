@@ -28,7 +28,7 @@ You should now be ready to start using commands wherever you normally interact w
 Before doing anything else you'll need to authenticate the app with your Axosoft account.
 
 1. Run `hubot axosoft set url youraxosofturl.axosoft.com`
-2. Run `hubot axosoft authenticate` and you'll be given a link to visit on Axosoft. **If your hubot is integrated with chat software**, please be warned that the link given to you might be malformed. It should begin with `https://` and the final parameter should look like `&state=myurl.axosoft.com`. Sorry about this!
+2. Run `hubot axosoft authenticate` and you'll be given a link to visit on Axosoft.
 3. From there you will be prompted to allow the app to access your data and will then be provided with an access token. 
 4. You need to add the token with `hubot axosoft set token TOKEN-GOES-HERE`, or failing that, add it to `node_modules/hubot-axosoft/axosoft.config.json` as the `ACCESS_TOKEN` key.
 5. Run `hubot axosoft setup` and hubot will do some behind-the-scenes setup, such as store a list of your projects. You can re-run this at any time to get fresh data.

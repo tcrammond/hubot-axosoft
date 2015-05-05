@@ -128,7 +128,14 @@ module.exports = function (robot) {
             if(err) deferred.reject(err);
             body = JSON.parse(body);
 
-            deferred.resolve();
+            data = {
+                features: body.data.item_types.features.labels,
+                defects: body.data.item_types.defects.labels,
+                tasks: body.data.item_types.tasks.labels,
+                workLogs: body.data.item_types.work_logs.labels
+            };
+
+            deferred.resolve(data);
         });
 
         return deferred.promise;
@@ -307,217 +314,6 @@ module.exports = function (robot) {
     };
 
     /*
-
-     AUTHENTICATION
-
-     */
-    robot.respond(/axosoft authenticate/, function (msg) {
-        // Send them off to Axosoft and hope for the best
-        msg.send(needAccessTokenResponse());
-    });
-
-    robot.respond(/axosoft set token (.*)/, function (msg) {
-        var token = msg.match[1] || '';
-        if (!token.length) {
-            msg.send('Invalid token.');
-            return;
-        }
-
-        CONFIG.ACCESS_TOKEN = token;
-
-        fs.writeFile(configFilePath, JSON.stringify(CONFIG), function (err) {
-            if (err) {
-                msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
-            } else {
-                msg.send('Successfully updated axosoft.config.json.');
-            }
-        });
-
-    });
-
-    robot.respond(/axosoft set url (.*)/, function (msg) {
-        var url = msg.match[1] || '';
-        if (!url.length) {
-            msg.send('Please provide a URL.');
-            return;
-        }
-
-        url = url.replace('http://', '').replace('https://', '');
-        url = 'https://' + url;
-
-        if(validUrl.is_https_uri(url) === null || url.substr(-4, 4) !== '.com') {
-            msg.send('Sorry, that doesn\'t look like a URL I can use. Please provide your Axosoft URL in the format myaccount.axosoft.com.');
-            return;
-        }
-
-        CONFIG.AXOSOFT_URL = url;
-        setupApi();
-
-        fs.writeFile(configFilePath, JSON.stringify(CONFIG), function (err) {
-            if (err) {
-                msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
-            } else {
-                msg.send('Successfully updated axosoft.config.json.');
-            }
-        });
-
-    });
-
-    /*
-     WORK LOGS
-     */
-    robot.respond(/axosoft work logs from (.*)( to (.*))?/, function (msg) {
-
-        //TODO: rewrite this properly
-
-        if (!authenticated(msg)) return;
-
-        var fromDate,
-            toDate,
-            processedLogs;
-
-        fromDate = msg.match[1];
-
-        switch (fromDate.toLowerCase()) {
-            case 'yesterday':
-                fromDate = moment().subtract(1, 'days').format(CONFIG.DATE_FORMAT);
-                break;
-
-            case 'today':
-                fromDate = moment().format(CONFIG.DATE_FORMAT);
-                break;
-
-            case 'tomorrow':
-                msg.send('That\'s for me to know and you to find out.');
-                return;
-            case 'monday':
-            case 'tuesday':
-            case 'wednesday':
-            case 'thursday':
-            case 'friday':
-            case 'saturday':
-            case 'sunday':
-                fromDate = getPrevWeekday(fromDate);
-                break;
-
-            default:
-                fromDate = moment(fromDate).format(CONFIG.DATE_FORMAT);
-                break;
-        }
-
-        toDate = moment(fromDate).add(1, 'days').format(CONFIG.DATE_FORMAT);
-
-        processedLogs = {};
-
-        var processLogUser = function (log) {
-
-            processedLogs[log.user.name] = processedLogs[log.user.name] || {
-                items: [],
-                totalDuration: 0
-            };
-
-            processedLogs[log.user.name].items.push({
-                duration: log.work_done.duration,
-                id: log.item.id,
-                name: log.item.name,
-                type: log.item.item_type
-            });
-
-        };
-
-        var processLogs = function () {
-
-            for (var prop in processedLogs) {
-                var user = processedLogs[prop];
-                var newLogs = {};
-                var total = 0;
-
-                for (var i = 0; i < user.items.length; i++) {
-
-                    var log = user.items[i];
-
-                    newLogs[log.id] = newLogs[log.id] || {
-                        duration: 0,
-                        id: log.id,
-                        name: log.name,
-                        type: log.item_type
-                    };
-
-                    newLogs[log.id].duration += log.duration;
-                    total += log.duration;
-
-                }
-
-                processedLogs[prop].items = newLogs;
-                processedLogs[prop].totalDuration = total;
-
-            }
-
-        };
-
-        robot.http(API.WORK_LOGS + '?start_date=' + fromDate + '&end_date=' + toDate + '&access_token=' + CONFIG.ACCESS_TOKEN).get()(function (err, res, body) {
-            body = JSON.parse(body);
-            for (var i = 0; i < body.data.length; i++) {
-                processLogUser(body.data[i]);
-            }
-            processLogs();
-
-            if (!body.data.length) {
-               msg.send('Sorry, there aren\'t any work logs for ' + fromDate + '.');
-                return;
-            }
-
-            var message = util.bold('Work from ' + fromDate, true);
-            var grandTotal = 0;
-
-            for (var user in processedLogs) {
-
-                // Title
-                message += util.bold(user + ':', true);
-
-                // Items
-                for (var itemId in processedLogs[user].items) {
-                    var item = processedLogs[user].items[itemId];
-                    message += util.bold('[' + item.id + ']') + ' ' + item.name + ' - ' + util.minsToHours(item.duration, true) + '\n';
-                }
-
-                // Total
-                message += util.bold('Velocity:') + ' ' + util.minsToHours(processedLogs[user].totalDuration, true);
-                grandTotal += processedLogs[user].totalDuration;
-
-                message += '\n\n';
-            }
-
-            message += util.bold('Total:') + ' ' + util.minsToHours(grandTotal, true);
-
-            msg.send(message);
-        });
-    });
-
-    /*
-     * Lists all of the projects and their ID for aliasing
-     */
-    robot.respond(/axosoft projects/, function (msg) {
-
-        if (!authenticated(msg)) return;
-
-       var projects = robot.brain.get('projectIndex');
-
-       if(projects){
-
-            for(project in projects){
-                msg.send('Name: ' + project + ' , ID: ' + projects[project]);
-            }
-
-       } else {
-
-           msg.send('Oops, I don\'t know any projects. Try running "hubot axosoft setup" to help me remember them.');
-
-       }
-
-    });
-
-    /*
      * Stores the list of project names against their ID in the brain, so that
      * commands can reference the project name, and not the ID.
      */
@@ -525,7 +321,13 @@ module.exports = function (robot) {
 
         if (!authenticated(msg)) return;
 
-        getProjects().then(function(data){
+        var projects = getProjects();
+        var sysOptions = getSystemOptions();
+
+        /*
+         Get a list of projects & store a flattened version of them
+         */
+        projects.then(function (data){
 
             var projectIndex = {};
             _.forEach(data, function(project){
@@ -534,87 +336,320 @@ module.exports = function (robot) {
 
             robot.brain.set('projectIndex', projectIndex);
 
+        });
+
+
+        /*
+         Store the item names in case they have been customized
+         */
+        sysOptions.then(function (data) {
+            console.log(data);
+            robot.brain.set('itemNames', data);
+            CONFIG.itemNames = data;
+        });
+
+        // Return only when all calls have resolved
+        q.all([projects, sysOptions]).then(function (responses) {
+            responders();
             msg.send('I\'m all set up!');
         });
 
     });
 
-    //TODO: make this do something useful!
-    robot.respond(/axosoft project (.*)/, function(msg) {
+    var responders = function () {
+        /*
 
-        if (!authenticated(msg)) return;
+         AUTHENTICATION
 
-        // Check a project name was actually given
-        if(!msg.match[1] || msg.match[1] === '') {
-            msg.send('Please supply a project name.');
-            return;
-        }
+         */
+        robot.respond(/axosoft authenticate/, function (msg) {
+            // Send them off to Axosoft and hope for the best
+            msg.send(needAccessTokenResponse());
+        });
 
-        // Make the project easier to match & try to find it
-        var match = msg.match[1].toLowerCase();
-        var projects = robot.brain.get('projectIndex');
-        var id = util.getIdByName(match, projects);
+        robot.respond(/axosoft set token (.*)/, function (msg) {
+            var token = msg.match[1] || '';
+            if (!token.length) {
+                msg.send('Invalid token.');
+                return;
+            }
 
-        // If it couldn't be found we'll say so.
-        msg.send(id !== null ? 'All I know about ' + match + ' is that it\'s ID is ' + id + '! I promise I\'ll be more useful one day.' :
-            'Sorry, I don\'t know anything about that project. Try running "hubot axosoft setup".');
+            CONFIG.ACCESS_TOKEN = token;
 
-    });
+            fs.writeFile(configFilePath, JSON.stringify(CONFIG), function (err) {
+                if (err) {
+                    msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
+                } else {
+                    msg.send('Successfully updated axosoft.config.json.');
+                }
+            });
 
-    robot.respond(/axosoft feature (.*)/, function(msg){
+        });
 
-        getFeature(msg.match[1]).then(function(data){
+        robot.respond(/axosoft set url (.*)/, function (msg) {
+            var url = msg.match[1] || '';
+            if (!url.length) {
+                msg.send('Please provide a URL.');
+                return;
+            }
+
+            url = url.replace('http://', '').replace('https://', '');
+            url = 'https://' + url;
+
+            if(validUrl.is_https_uri(url) === null || url.substr(-4, 4) !== '.com') {
+                msg.send('Sorry, that doesn\'t look like a URL I can use. Please provide your Axosoft URL in the format myaccount.axosoft.com.');
+                return;
+            }
+
+            CONFIG.AXOSOFT_URL = url;
+            setupApi();
+
+            fs.writeFile(configFilePath, JSON.stringify(CONFIG), function (err) {
+                if (err) {
+                    msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
+                } else {
+                    msg.send('Successfully updated axosoft.config.json.');
+                }
+            });
+
+        });
+
+        /*
+         WORK LOGS
+         */
+        robot.respond(/axosoft work logs from (.*)( to (.*))?/, function (msg) {
+
+            //TODO: rewrite this properly
+
+            if (!authenticated(msg)) return;
+
+            var fromDate,
+                toDate,
+                processedLogs;
+
+            fromDate = msg.match[1];
+
+            switch (fromDate.toLowerCase()) {
+                case 'yesterday':
+                    fromDate = moment().subtract(1, 'days').format(CONFIG.DATE_FORMAT);
+                    break;
+
+                case 'today':
+                    fromDate = moment().format(CONFIG.DATE_FORMAT);
+                    break;
+
+                case 'tomorrow':
+                    msg.send('That\'s for me to know and you to find out.');
+                    return;
+                case 'monday':
+                case 'tuesday':
+                case 'wednesday':
+                case 'thursday':
+                case 'friday':
+                case 'saturday':
+                case 'sunday':
+                    fromDate = getPrevWeekday(fromDate);
+                    break;
+
+                default:
+                    fromDate = moment(fromDate).format(CONFIG.DATE_FORMAT);
+                    break;
+            }
+
+            toDate = moment(fromDate).add(1, 'days').format(CONFIG.DATE_FORMAT);
+
+            processedLogs = {};
+
+            var processLogUser = function (log) {
+
+                processedLogs[log.user.name] = processedLogs[log.user.name] || {
+                        items: [],
+                        totalDuration: 0
+                    };
+
+                processedLogs[log.user.name].items.push({
+                    duration: log.work_done.duration,
+                    id: log.item.id,
+                    name: log.item.name,
+                    type: log.item.item_type
+                });
+
+            };
+
+            var processLogs = function () {
+
+                for (var prop in processedLogs) {
+                    var user = processedLogs[prop];
+                    var newLogs = {};
+                    var total = 0;
+
+                    for (var i = 0; i < user.items.length; i++) {
+
+                        var log = user.items[i];
+
+                        newLogs[log.id] = newLogs[log.id] || {
+                                duration: 0,
+                                id: log.id,
+                                name: log.name,
+                                type: log.item_type
+                            };
+
+                        newLogs[log.id].duration += log.duration;
+                        total += log.duration;
+
+                    }
+
+                    processedLogs[prop].items = newLogs;
+                    processedLogs[prop].totalDuration = total;
+
+                }
+
+            };
+
+            robot.http(API.WORK_LOGS + '?start_date=' + fromDate + '&end_date=' + toDate + '&access_token=' + CONFIG.ACCESS_TOKEN).get()(function (err, res, body) {
+                body = JSON.parse(body);
+                for (var i = 0; i < body.data.length; i++) {
+                    processLogUser(body.data[i]);
+                }
+                processLogs();
+
+                if (!body.data.length) {
+                    msg.send('Sorry, there aren\'t any work logs for ' + fromDate + '.');
+                    return;
+                }
+
+                var message = util.bold('Work from ' + fromDate, true);
+                var grandTotal = 0;
+
+                for (var user in processedLogs) {
+
+                    // Title
+                    message += util.bold(user + ':', true);
+
+                    // Items
+                    for (var itemId in processedLogs[user].items) {
+                        var item = processedLogs[user].items[itemId];
+                        message += util.bold('[' + item.id + ']') + ' ' + item.name + ' - ' + util.minsToHours(item.duration, true) + '\n';
+                    }
+
+                    // Total
+                    message += util.bold('Velocity:') + ' ' + util.minsToHours(processedLogs[user].totalDuration, true);
+                    grandTotal += processedLogs[user].totalDuration;
+
+                    message += '\n\n';
+                }
+
+                message += util.bold('Total:') + ' ' + util.minsToHours(grandTotal, true);
+
+                msg.send(message);
+            });
+        });
+
+        /*
+         * Lists all of the projects and their ID for aliasing
+         */
+        robot.respond(/axosoft projects/, function (msg) {
+
+            if (!authenticated(msg)) return;
+
             var projects = robot.brain.get('projectIndex');
-            var projectName = getNameById(data.data.project.id, projects);
 
-            msg.send('Feature "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
-            msg.send(CONFIG.AXOSOFT_URL+'/viewitem.aspx?id='+msg.match[1]+'&type=features');
-        }, function (error) {
-            var response = handleApiError(msg, error);
-            msg.send(response);
+            if(projects){
+
+                for(project in projects){
+                    msg.send('Name: ' + project + ' , ID: ' + projects[project]);
+                }
+
+            } else {
+
+                msg.send('Oops, I don\'t know any projects. Try running "hubot axosoft setup" to help me remember them.');
+
+            }
+
         });
 
-    });
 
-    robot.respond(/axosoft bug (.*)+/, function(msg){
 
-        getDefect(msg.match[1]).then(function(data){
+        //TODO: make this do something useful!
+        robot.respond(/axosoft project (.*)/, function(msg) {
+
+            if (!authenticated(msg)) return;
+
+            // Check a project name was actually given
+            if(!msg.match[1] || msg.match[1] === '') {
+                msg.send('Please supply a project name.');
+                return;
+            }
+
+            // Make the project easier to match & try to find it
+            var match = msg.match[1].toLowerCase();
             var projects = robot.brain.get('projectIndex');
-            var projectName = getNameById(data.data.project.id, projects);
+            var id = util.getIdByName(match, projects);
 
-            msg.send('Bug "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
-            msg.send(CONFIG.AXOSOFT_URL+'/viewitem.aspx?id='+msg.match[1]+'&type=defects');
-        }, function (error) {
-            var response = handleApiError(msg, error);
-            msg.send(response);
+            // If it couldn't be found we'll say so.
+            msg.send(id !== null ? 'All I know about ' + match + ' is that it\'s ID is ' + id + '! I promise I\'ll be more useful one day.' :
+                'Sorry, I don\'t know anything about that project. Try running "hubot axosoft setup".');
+
         });
 
-    });
+        robot.respond(/axosoft feature (.*)/, function(msg){
 
-    robot.respond(/axosoft add bug "(.*)" to (.*)/, function(msg){
+            getFeature(msg.match[1]).then(function(data){
+                var projects = robot.brain.get('projectIndex');
+                var projectName = getNameById(data.data.project.id, projects);
 
-        var title = msg.match[1];
-        var project = msg.match[2];
+                msg.send('Feature "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
+                msg.send(CONFIG.AXOSOFT_URL+'/viewitem.aspx?id='+msg.match[1]+'&type=features');
+            }, function (error) {
+                var response = handleApiError(msg, error);
+                msg.send(response);
+            });
 
-        createDefect(title, project).then(function (data) {
-            msg.send('The bug has been created with an ID of ' + data.id + '.');
-        }, function (error) {
-            msg.send('Sorry, something went wrong creating the bug. ' + error);
         });
 
-    });
+        robot.respond(/axosoft bug (.*)+/, function(msg){
 
-    robot.respond(/axosoft add feature "(.*)" to (.*)/, function(msg){
+            getDefect(msg.match[1]).then(function(data){
+                var projects = robot.brain.get('projectIndex');
+                var projectName = getNameById(data.data.project.id, projects);
 
-        var title = msg.match[1];
-        var project = msg.match[2];
+                msg.send('Bug "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
+                msg.send(CONFIG.AXOSOFT_URL+'/viewitem.aspx?id='+msg.match[1]+'&type=defects');
+            }, function (error) {
+                var response = handleApiError(msg, error);
+                msg.send(response);
+            });
 
-        createFeature(title, project).then(function (data) {
-            msg.send('The feature has been created with an ID of ' + data.id + '.');
-        }, function (error) {
-            msg.send('Sorry, something went wrong creating the feature. ' + error);
         });
 
-    });
+        //var addBugMatcher =;
+        robot.respond( new RegExp('axosoft add ' + CONFIG.itemNames.defects.singular.toLowerCase() + ' "(.*)" to (.*)'), function(msg){
+
+            var title = msg.match[1];
+            var project = msg.match[2];
+
+            createDefect(title, project).then(function (data) {
+                msg.send('The bug has been created with an ID of ' + data.id + '.');
+            }, function (error) {
+                msg.send('Sorry, something went wrong creating the bug. ' + error);
+            });
+
+        });
+
+        robot.respond(/axosoft add feature "(.*)" to (.*)/, function(msg){
+
+            var title = msg.match[1];
+            var project = msg.match[2];
+
+            createFeature(title, project).then(function (data) {
+                msg.send('The feature has been created with an ID of ' + data.id + '.');
+            }, function (error) {
+                msg.send('Sorry, something went wrong creating the feature. ' + error);
+            });
+
+        });
+    };
+
+
 
 };

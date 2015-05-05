@@ -110,6 +110,7 @@ module.exports = function (robot) {
 
         if (projectId === null || !projectId) {
             deferred.reject('Could\'t find the project "' + project + '". Maybe try "hubot axosoft setup"?');
+            return deferred.promise;
         }
 
         var defect = {

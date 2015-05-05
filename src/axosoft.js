@@ -1,3 +1,19 @@
+// Description:
+//   A hubot script that helps you quickly grab data from Axosoft, an agile project management solution.
+//
+// Commands:
+//   hubot axosoft authenticate - Returns an Axosoft URL where you can authenticate the app with your account.
+//   hubot axosoft setup - Performs some behind-the-scenes setup, such as store a list of your projects. You can re-run this at any time to get fresh data.
+//   hubot axosoft work logs from <day> - Lists work logs submitted on the given day, grouped by user and item.
+//   hubot axosoft add bug "<title"> to <project> - Adds a new bug to the specified project.
+//   hubot axosoft bug <id> - Returns some information about the bug with the given ID.
+//   hubot axosoft add feature "<title"> to <project> - Adds a new feature to the specified project.
+//   hubot axosoft feature <id> - Returns some information about the feature with the given ID.
+//
+// Author:
+//   tcrammond
+//
+
 var moment = require('moment');
 var _ = require('lodash');
 var fs = require('fs');

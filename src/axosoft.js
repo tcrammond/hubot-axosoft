@@ -56,7 +56,8 @@ module.exports = function (robot) {
             WORK_LOGS: API_URL + '/work_logs',
             PROJECTS: API_URL + '/projects',
             DEFECTS: API_URL + '/defects',
-            FEATURES: API_URL + '/features'
+            FEATURES: API_URL + '/features',
+            SYSTEM_OPTIONS: API_URL + '/settings/system_options'
         };
     };
 
@@ -117,6 +118,21 @@ module.exports = function (robot) {
 
          return deferred.promise;
      };
+
+    var getSystemOptions = function () {
+        var deferred = q.defer();
+        var data = {};
+
+        robot.http(API.SYSTEM_OPTIONS + '?access_token=' + CONFIG.ACCESS_TOKEN).get()(function(err, res, body){
+
+            if(err) deferred.reject(err);
+            body = JSON.parse(body);
+
+            deferred.resolve();
+        });
+
+        return deferred.promise;
+    };
 
     var createDefect = function(title, project){
         var deferred = q.defer();

@@ -17,11 +17,93 @@ var path = require('path');
 var util = require('./axosoft.util.js');
 var q = require('q');
 var validUrl = require('valid-url');
+//var Responders = require('./responders.js');
 
 var configFileName = './axosoft.util.js';
 var configFilePath = path.resolve(__dirname + '/../axosoft.config.json');
 
+//var Responders = (function() {
+    function Responders(robot) {
+        this.robot = robot;
+        this.robot.brain.data.responders = [];
+        this.robot.brain.on('loaded', (function(_this) {
+            return function(data) {
+                var pattern, ref, responder, results;
+                ref = data.responders;
+                results = [];
+                for (pattern in ref) {
+                    responder = ref[pattern];
+                    delete responder.index;
+                    results.push(_this.add(pattern, responder.callback));
+                }
+                return results;
+            };
+        })(this));
+    }
+
+    Responders.prototype.responders = function() {
+        //console.log(this.robot.brain.data.responders);
+        return this.robot.brain.data.responders;
+    };
+
+    Responders.prototype.responder = function(pattern) {
+        return this.responders()[pattern];
+    };
+
+    Responders.prototype.remove = function(pattern) {
+        var responder;
+        responder = this.responder(pattern);
+        if (responder) {
+            if (responder.index) {
+                console.log("listenrs before", this.robot.listeners);
+                this.robot.listeners.splice(responder.index, 1);
+                console.log("listenrs after", this.robot.listeners);
+
+            }
+            delete this.responders()[pattern];
+        } else {
+            console.log("COULD NOT FIND RESPONDER", pattern);
+        }
+        return responder;
+    };
+
+    Responders.prototype.add = function(pattern, callback) {
+        var error, eval_callback, eval_pattern;
+        try {
+            eval_pattern = eval("/" + pattern + "/i");
+        } catch (_error) {
+            console.log("ERROR WITH PATTERN");
+            error = _error;
+            eval_pattern = null;
+        }
+        //try {
+        //    eval_callback = eval("_ = function (msg) { " + callback + " }");
+        //} catch (_error) {
+        //    console.log("ERROR WITH FUNCTION");
+        //    error = _error;
+        //    eval_callback = null;
+        //}
+
+        eval_callback = callback;
+
+        if (eval_pattern instanceof RegExp && eval_callback instanceof Function) {
+            this.remove(pattern);
+            this.robot.respond(eval_pattern, eval_callback);
+            this.responders()[pattern] = {
+                callback: callback,
+                index: this.robot.listeners.length - 1
+            };
+            return this.responder(pattern);
+        }
+    };
+
+    //return Responders;
+
+//})();
+
 module.exports = function (robot) {
+
+    var responders = new Responders(robot);
 
     /*
      Internal constants
@@ -32,7 +114,7 @@ module.exports = function (robot) {
     /**
      * Config
      */
-    var CONFIG = _.extend({
+    var CONFIG = _.merge({
         API_VERSION: "/api/v5",
         AXOSOFT_URL: "",
         DATE_FORMAT: 'YYYY-MM-DD',
@@ -90,22 +172,29 @@ module.exports = function (robot) {
     var matchers = {};
     var setupMatchers = function () {
 
+        console.log("before matchers", CONFIG.ITEM_NAMES);
         matchers = {
-            projects: /axosoft projects/,
-            project: /axosoft project (.*)/,
-            workLogsReport: new RegExp('axosoft ' + CONFIG.ITEM_NAMES.work_logs.plural.toLowerCase() + ' from (.*)( to (.*))?'),
-            feature: new RegExp('axosoft ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + '(.*)'),
-            bug: new RegExp('axosoft ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + '(.*)'),
-            addFeature: new RegExp('axosoft add ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' "(.*)" to (.*)'),
-            addBug: new RegExp('axosoft add ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' "(.*)" to (.*)')
+            projects: 'axosoft projects',
+            project: 'axosoft project (.*)',
+            workLogsReport: 'axosoft ' + CONFIG.ITEM_NAMES.work_logs.plural.toLowerCase() + ' from (.*)( to (.*))?',
+            feature: 'axosoft ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' (.*)',
+            bug: 'axosoft ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' (.*)',
+            addFeature: 'axosoft add ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' "(.*)" to (.*)',
+            addBug: 'axosoft add ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' "(.*)" to (.*)'
         };
+        console.log("after matchers");
+
 
     };
 
     var forgetResponders = function () {
+
+
         for (var key in matchers) {
-            robot.forget(matchers[key]);
+            responders.remove(matchers[key]);
+            //robot.forget(matchers[key]);
         }
+
     };
 
     var setupResponders = function () {
@@ -113,7 +202,7 @@ module.exports = function (robot) {
         /*
          WORK LOGS
          */
-        robot.respond(matchers.workLogsReport, function (msg) {
+        responders.add(matchers.workLogsReport, function (msg) {
 
             //TODO: rewrite this properly
 
@@ -244,7 +333,7 @@ module.exports = function (robot) {
         /*
          * Lists all of the projects and their ID for aliasing
          */
-        robot.respond(matchers.projects, function (msg) {
+        responders.add(matchers.projects, function (msg) {
 
             if (!authenticated(msg)) return;
 
@@ -265,7 +354,7 @@ module.exports = function (robot) {
         });
 
         //TODO: make this do something useful!
-        robot.respond(matchers.project, function (msg) {
+        responders.add(matchers.project, function (msg) {
 
             if (!authenticated(msg)) return;
 
@@ -286,7 +375,7 @@ module.exports = function (robot) {
 
         });
 
-        robot.respond(matchers.feature, function (msg) {
+        responders.add(matchers.feature, function (msg) {
 
             getFeature(msg.match[1]).then(function (data) {
                 var projects = robot.brain.get('projectIndex');
@@ -301,7 +390,7 @@ module.exports = function (robot) {
 
         });
 
-        robot.respond(matchers.bug, function (msg) {
+        responders.add(matchers.bug, function (msg) {
 
             getDefect(msg.match[1]).then(function (data) {
                 var projects = robot.brain.get('projectIndex');
@@ -316,7 +405,7 @@ module.exports = function (robot) {
 
         });
 
-        robot.respond(matchers.addBug, function (msg) {
+        responders.add(matchers.addBug, function (msg) {
 
             var title = msg.match[1];
             var project = msg.match[2];
@@ -329,7 +418,7 @@ module.exports = function (robot) {
 
         });
 
-        robot.respond(matchers.addFeature, function (msg) {
+        responders.add(matchers.addFeature, function (msg) {
 
             var title = msg.match[1];
             var project = msg.match[2];
@@ -346,6 +435,7 @@ module.exports = function (robot) {
     setupApi();
     setupMatchers();
     setupResponders();
+    console.log("Initial responders", responders.responders());
 
     /**
      * Returns the full URL the user must visit to authenticate the app
@@ -418,7 +508,7 @@ module.exports = function (robot) {
                 features: body.data.item_types.features.labels,
                 defects: body.data.item_types.defects.labels,
                 tasks: body.data.item_types.tasks.labels,
-                workLogs: body.data.item_types.work_logs.labels
+                work_logs: body.data.item_types.work_logs.labels
             };
 
             deferred.resolve(data);
@@ -674,28 +764,38 @@ module.exports = function (robot) {
             });
 
             robot.brain.set('projectIndex', projectIndex);
-
         });
 
         /*
          Store the item names in case they have been customized
          */
+        var sysOptionsData = null;
         sysOptions.then(function (data) {
             robot.brain.remove('itemNames');
             robot.brain.set('itemNames', data);
-            CONFIG.ITEM_NAMES = data;
+            sysOptionsData = data;
         });
 
         // Return only when all calls have resolved
         q.all([projects, sysOptions]).then(function () {
+
             forgetResponders();
-            console.log(CONFIG.ITEM_NAMES);
+            CONFIG.ITEM_NAMES = sysOptionsData;
+
             setupMatchers();
             setupResponders();
 
-            robot.send('I\'m all set up!');
+            console.log("responders after setup", responders.responders());
+
+            msg.send('I\'m all set up!');
         });
 
     });
+
+    robot.respond(/test/, function (msg) {
+        //msg.send(JSON.stringify(responders.responders()));
+msg.send(JSON.stringify(robot.listeners));
+
+    })
 
 };

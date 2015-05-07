@@ -22,19 +22,6 @@ var configFilePath = path.resolve(__dirname + '/../axosoft.config.json');
 function Responders (robot) {
     this.robot = robot;
     this.robot.brain.data.responders = [];
-    //this.robot.brain.on('loaded', (function(_this) {
-    //    return function(data) {
-    //        var pattern, ref, responder, results;
-    //        ref = data.responders;
-    //        results = [];
-    //        for (pattern in ref) {
-    //            responder = ref[pattern];
-    //            delete responder.index;
-    //            results.push(_this.add(pattern, responder.callback));
-    //        }
-    //        return results;
-    //    };
-    //})(this));
 }
 
 Responders.prototype.responders = function () {
@@ -62,8 +49,6 @@ Responders.prototype.remove = function (pattern) {
         }
 
         delete this.responders()[pattern];
-    } else {
-        //console.log("COULD NOT FIND RESPONDER", pattern);
     }
     return responder;
 };
@@ -76,13 +61,6 @@ Responders.prototype.add = function (pattern, callback) {
         error = _error;
         eval_pattern = null;
     }
-    //try {
-    //    eval_callback = eval("_ = function (msg) { " + callback + " }");
-    //} catch (_error) {
-    //    console.log("ERROR WITH FUNCTION");
-    //    error = _error;
-    //    eval_callback = null;
-    //}
 
     eval_callback = callback;
 

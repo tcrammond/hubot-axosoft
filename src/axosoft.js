@@ -14,10 +14,12 @@ var moment = require('moment');
 var _ = require('lodash');
 var fs = require('fs');
 var path = require('path');
-var util = require('./axosoft.util.js');
+var Util = require('./axosoft.util.js');
 var q = require('q');
 var validUrl = require('valid-url');
 var configFilePath = path.resolve(__dirname + '/../axosoft.config.json');
+
+var util = Util();
 
 function Responders (robot) {
     this.robot = robot;

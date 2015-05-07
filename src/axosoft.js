@@ -17,12 +17,8 @@ var path = require('path');
 var util = require('./axosoft.util.js');
 var q = require('q');
 var validUrl = require('valid-url');
-//var Responders = require('./responders.js');
-
-var configFileName = './axosoft.util.js';
 var configFilePath = path.resolve(__dirname + '/../axosoft.config.json');
 
-//var Responders = (function() {
 function Responders (robot) {
     this.robot = robot;
     this.robot.brain.data.responders = [];
@@ -101,10 +97,6 @@ Responders.prototype.add = function (pattern, callback) {
     }
 };
 
-//return Responders;
-
-//})();
-
 module.exports = function (robot) {
 
     var responders = new Responders(robot);
@@ -151,10 +143,6 @@ module.exports = function (robot) {
             }
         }
     }, JSON.parse(fs.readFileSync(configFilePath, 'utf8')));
-
-    /*
-     API info
-     */
     var API_URL = '';
     var API = {};
     var setupApi = function () {
@@ -169,10 +157,6 @@ module.exports = function (robot) {
         };
     };
 
-    /*
-     Hubot responders.
-     We set these up / tear them down as and when the setup command is used
-     */
     var matchers = {};
     var setupMatchers = function () {
 
@@ -203,7 +187,7 @@ module.exports = function (robot) {
          */
         responders.add(matchers.workLogsReport, function (msg) {
 
-            //TODO: rewrite this properly
+            //TODO: rewrite this properly after the contest
 
             if (!authenticated(msg)) return;
 
@@ -317,16 +301,17 @@ module.exports = function (robot) {
                     }
 
                     // Total
-                    message += util.bold('Velocity:') + ' ' + util.minsToHours(processedLogs[user].totalDuration, true);
+                    message += util.bold('Total:') + ' ' + util.minsToHours(processedLogs[user].totalDuration, true);
                     grandTotal += processedLogs[user].totalDuration;
 
                     message += '\n\n';
                 }
 
-                message += util.bold('Total:') + ' ' + util.minsToHours(grandTotal, true);
+                message += util.bold('Grand total:') + ' ' + util.minsToHours(grandTotal, true);
 
                 msg.send(message);
             });
+
         });
 
         /*
@@ -410,9 +395,10 @@ module.exports = function (robot) {
             var project = msg.match[2];
 
             createDefect(title, project).then(function (data) {
-                msg.send('The bug has been created with an ID of ' + data.id + '.');
+                msg.send('I\'ve created the ' + CONFIG.ITEM_NAMES.defects.singular + '. It\'s ID is ' + data.id + ' and it can be found here:\n'
+                + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=defects');
             }, function (error) {
-                msg.send('Sorry, something went wrong creating the bug. ' + error);
+                msg.send('Sorry, I couldn\'t create the ' + CONFIG.ITEM_NAMES.defects.singular + '. ' + error);
             });
 
         });
@@ -423,17 +409,16 @@ module.exports = function (robot) {
             var project = msg.match[2];
 
             createFeature(title, project).then(function (data) {
-                msg.send('The feature has been created with an ID of ' + data.id + '.');
+                msg.send('I\'ve created the ' + CONFIG.ITEM_NAMES.features.singular + '. It\'s ID is ' + data.id + ' and it can be found here:\n'
+                + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=features');
             }, function (error) {
-                msg.send('Sorry, something went wrong creating the feature. ' + error);
+                msg.send('Sorry, I couldn\'t create the ' + CONFIG.ITEM_NAMES.features.singular + '. ' + error);
             });
 
         });
     };
 
     setupApi();
-    //setupMatchers();
-    //setupResponders();
 
     /**
      * Returns the full URL the user must visit to authenticate the app
@@ -522,7 +507,7 @@ module.exports = function (robot) {
         var projectId = util.getIdByName(project, projects);
 
         if (projectId === null || !projectId) {
-            deferred.reject('Could\'t find the project "' + project + '". Maybe try "hubot axosoft setup"?');
+            deferred.reject('I\'m not familiar with any projects called "' + project + '". Try refreshing my memory with "hubot axosoft setup".');
             return deferred.promise;
         }
 
@@ -560,7 +545,7 @@ module.exports = function (robot) {
         var projectId = util.getIdByName(project, projects);
 
         if (projectId === null || !projectId) {
-            deferred.reject('Could\'t find the project "' + project + '". Maybe try "hubot axosoft setup"?');
+            deferred.reject('I\'m not familiar with any projects called "' + project + '". Try refreshing my memory with "hubot axosoft setup".');
             return deferred.promise;
         }
 
@@ -736,7 +721,7 @@ module.exports = function (robot) {
             if (err) {
                 msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
             } else {
-                msg.send('Successfully updated your authentication token. You should be all set up now.');
+                msg.send('Successfully updated your authentication token. Run "hubot axosoft setup" and you\'ll be ready to go!');
             }
         });
 
@@ -761,6 +746,8 @@ module.exports = function (robot) {
     robot.respond(/axosoft setup/, function (msg) {
 
         if (!authenticated(msg)) return;
+
+        msg.send('Performing setup, please wait. .');
 
         var projects = getProjects();
         var sysOptions = getSystemOptions();
@@ -791,21 +778,21 @@ module.exports = function (robot) {
         // Return only when all calls have resolved
         q.all([projects, sysOptions]).then(function () {
 
-            forgetResponders();
-            CONFIG.ITEM_NAMES = sysOptionsData;
+            try {
+                forgetResponders();
+                CONFIG.ITEM_NAMES = sysOptionsData;
 
-            setupMatchers();
-            setupResponders();
+                setupMatchers();
+                setupResponders();
 
-            msg.send('I\'m all set up!');
+                msg.send('Setup complete! If I ever get restarted you\'ll need to run setup again.');
+
+            } catch (error) {
+                msg.send('Oops, something unexpected happened. Error: ' + error);
+            }
+
         });
 
     });
-
-    robot.respond(/test/, function (msg) {
-        //msg.send(JSON.stringify(responders.responders()));
-        msg.send(JSON.stringify(robot.listeners));
-
-    })
 
 };

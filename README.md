@@ -1,6 +1,6 @@
 # hubot-axosoft
 
-**Note: ** This integration for Axosoft has not yet been approved and therefore can't be used by general public yet. Sorry!
+**Note:** This integration for Axosoft has not yet been approved and therefore can't be used by general public yet. Sorry!
 
 ![Hubot Logo](http://i.imgur.com/pp7scrv.png)
 

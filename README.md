@@ -7,7 +7,7 @@
 A [hubot](https://hubot.github.com/) script that helps you quickly grab data from [Axosoft, an awesome agile project management tool](http://www.axosoft.com). 
 
 Works both in the command line and in hubot integrations in chat software, such as:
-* [Slack](slack.com)
+* [Slack](http://www.slack.com)
 
 ## Requirements
 

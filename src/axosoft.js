@@ -667,9 +667,16 @@ module.exports = function (robot) {
     };
 
     var authenticated = function (msg) {
+
+        // The URL must always be set.
+        if (!CONFIG.AXOSOFT_URL || CONFIG.AXOSOFT_URL === '') {
+            msg.send('Oops, I don\'t know your Axosoft URL. Please set it using "hubot axosoft set url yoururl.axosoft.com" and then run "hubot axosoft authenticate" to authenticate me.');
+            return false;
+        }
+
         // If the access token is not set, they must go through the authenticate procedure
         if (!CONFIG.ACCESS_TOKEN || CONFIG.ACCESS_TOKEN === '') {
-            msg.send('You can\'t do that until you\'ve authenticated me. ' + needAccessTokenResponse());
+            msg.send('Oops, I have\'t been authenticated yet. ' + needAccessTokenResponse());
             return false;
         }
 
@@ -683,7 +690,7 @@ module.exports = function (robot) {
      */
     var handleApiError = function (msg, error) {
 
-        return 'Oops, something went wrong. ' + error.message;
+        return 'Oops, something unexpected happened. ' + error.message;
 
     };
 
@@ -710,9 +717,9 @@ module.exports = function (robot) {
 
         fs.writeFile(configFilePath, JSON.stringify(CONFIG), function (err) {
             if (err) {
-                msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
+                msg.send('Sorry, something unexpected happened while writing to the config file. Please check it! Error: ' + err);
             } else {
-                msg.send('Successfully updated axosoft.config.json.');
+                msg.send('Successfully updated your Axosoft URL. You can now run "hubot axosoft authenticate" to authenticate me.');
             }
         });
 
@@ -721,7 +728,7 @@ module.exports = function (robot) {
     robot.respond(/axosoft set token (.*)/, function (msg) {
         var token = (msg.match[1] || '').trim();
         if (!token.length) {
-            msg.send('Invalid token.');
+            msg.send('Please provide a valid token.');
             return;
         }
 
@@ -731,14 +738,21 @@ module.exports = function (robot) {
             if (err) {
                 msg.send('Sorry, something went wrong writing to the config file. Please check it! Error: ' + err);
             } else {
-                msg.send('Successfully updated axosoft.config.json.');
+                msg.send('Successfully updated your authentication token. You should be all set up now.');
             }
         });
 
     });
 
     robot.respond(/axosoft authenticate/, function (msg) {
-        // Send them off to Axosoft and hope for the best
+
+        // The URL must always be set.
+        if (!CONFIG.AXOSOFT_URL || CONFIG.AXOSOFT_URL === '') {
+            msg.send('Oops, I don\'t know your Axosoft URL. Please set it using "hubot axosoft set url yoururl.axosoft.com" and then run "hubot axosoft authenticate" to authenticate me.');
+            return;
+        }
+
+        // Send them off to Axosoft to authenticate
         msg.send(needAccessTokenResponse());
     });
 

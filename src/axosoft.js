@@ -507,11 +507,13 @@ module.exports = function (robot) {
 
             body = JSON.parse(body);
 
-            if (err) deferred.reject(err.error_description);
-
-            if (body.error_description) deferred.reject(body.error_description);
-
-            deferred.resolve(body.data);
+            if (err) {
+                deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body.data);
+            }
 
         });
 
@@ -545,11 +547,13 @@ module.exports = function (robot) {
 
             body = JSON.parse(body);
 
-            if (err) deferred.reject(err.error_description);
-
-            if (body.error_description) deferred.reject(body.error_description);
-
-            deferred.resolve(body.data);
+            if (err) {
+                deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body.data);
+            }
 
         });
 
@@ -583,11 +587,14 @@ module.exports = function (robot) {
 
             body = JSON.parse(body);
 
-            if (err || body.error || body.error_description) {
+            if (err) {
                 deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body);
             }
 
-            deferred.resolve(body);
         });
 
         return deferred.promise;
@@ -600,11 +607,14 @@ module.exports = function (robot) {
 
             body = JSON.parse(body);
 
-            if (err || body.error || body.error_description) {
+            if (err) {
                 deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body);
             }
 
-            deferred.resolve(body);
         });
 
         return deferred.promise;
@@ -653,7 +663,7 @@ module.exports = function (robot) {
      */
     var handleApiError = function (msg, error) {
 
-        return 'Oops, something unexpected happened. ' + error.message;
+        return 'Oops, something unexpected happened. ' + error;
 
     };
 

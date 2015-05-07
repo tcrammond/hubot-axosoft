@@ -23,81 +23,85 @@ var configFileName = './axosoft.util.js';
 var configFilePath = path.resolve(__dirname + '/../axosoft.config.json');
 
 //var Responders = (function() {
-    function Responders(robot) {
-        this.robot = robot;
-        this.robot.brain.data.responders = [];
-        this.robot.brain.on('loaded', (function(_this) {
-            return function(data) {
-                var pattern, ref, responder, results;
-                ref = data.responders;
-                results = [];
-                for (pattern in ref) {
-                    responder = ref[pattern];
-                    delete responder.index;
-                    results.push(_this.add(pattern, responder.callback));
-                }
-                return results;
-            };
-        })(this));
-    }
+function Responders (robot) {
+    this.robot = robot;
+    this.robot.brain.data.responders = [];
+    //this.robot.brain.on('loaded', (function(_this) {
+    //    return function(data) {
+    //        var pattern, ref, responder, results;
+    //        ref = data.responders;
+    //        results = [];
+    //        for (pattern in ref) {
+    //            responder = ref[pattern];
+    //            delete responder.index;
+    //            results.push(_this.add(pattern, responder.callback));
+    //        }
+    //        return results;
+    //    };
+    //})(this));
+}
 
-    Responders.prototype.responders = function() {
-        //console.log(this.robot.brain.data.responders);
-        return this.robot.brain.data.responders;
-    };
+Responders.prototype.responders = function () {
+    return this.robot.brain.data.responders;
+};
 
-    Responders.prototype.responder = function(pattern) {
-        return this.responders()[pattern];
-    };
+Responders.prototype.responder = function (pattern) {
+    return this.responders()[pattern];
+};
 
-    Responders.prototype.remove = function(pattern) {
-        var responder;
-        responder = this.responder(pattern);
-        if (responder) {
-            if (responder.index) {
-                console.log("listenrs before", this.robot.listeners);
-                this.robot.listeners.splice(responder.index, 1);
-                console.log("listenrs after", this.robot.listeners);
+Responders.prototype.remove = function (pattern) {
+    var responder;
+    responder = this.responder(pattern);
+    if (responder) {
 
+        var indexToRemove = false;
+        for (var i = 0; i < this.robot.listeners.length; i++) {
+            if (this.robot.listeners[i].regex.toString().indexOf(pattern) !== -1) {
+                indexToRemove = i;
             }
-            delete this.responders()[pattern];
-        } else {
-            console.log("COULD NOT FIND RESPONDER", pattern);
         }
-        return responder;
-    };
 
-    Responders.prototype.add = function(pattern, callback) {
-        var error, eval_callback, eval_pattern;
-        try {
-            eval_pattern = eval("/" + pattern + "/i");
-        } catch (_error) {
-            console.log("ERROR WITH PATTERN");
-            error = _error;
-            eval_pattern = null;
+        if (indexToRemove) {
+            this.robot.listeners.splice(indexToRemove, 1);
         }
-        //try {
-        //    eval_callback = eval("_ = function (msg) { " + callback + " }");
-        //} catch (_error) {
-        //    console.log("ERROR WITH FUNCTION");
-        //    error = _error;
-        //    eval_callback = null;
-        //}
 
-        eval_callback = callback;
+        delete this.responders()[pattern];
+    } else {
+        //console.log("COULD NOT FIND RESPONDER", pattern);
+    }
+    return responder;
+};
 
-        if (eval_pattern instanceof RegExp && eval_callback instanceof Function) {
-            this.remove(pattern);
-            this.robot.respond(eval_pattern, eval_callback);
-            this.responders()[pattern] = {
-                callback: callback,
-                index: this.robot.listeners.length - 1
-            };
-            return this.responder(pattern);
-        }
-    };
+Responders.prototype.add = function (pattern, callback) {
+    var error, eval_callback, eval_pattern;
+    try {
+        eval_pattern = eval("/" + pattern + "/i");
+    } catch (_error) {
+        error = _error;
+        eval_pattern = null;
+    }
+    //try {
+    //    eval_callback = eval("_ = function (msg) { " + callback + " }");
+    //} catch (_error) {
+    //    console.log("ERROR WITH FUNCTION");
+    //    error = _error;
+    //    eval_callback = null;
+    //}
 
-    //return Responders;
+    eval_callback = callback;
+
+    if (eval_pattern instanceof RegExp && eval_callback instanceof Function) {
+        this.remove(pattern);
+        this.robot.respond(eval_pattern, eval_callback);
+        this.responders()[pattern] = {
+            callback: callback,
+            index: this.robot.listeners.length
+        };
+        return this.responder(pattern);
+    }
+};
+
+//return Responders;
 
 //})();
 
@@ -172,7 +176,6 @@ module.exports = function (robot) {
     var matchers = {};
     var setupMatchers = function () {
 
-        console.log("before matchers", CONFIG.ITEM_NAMES);
         matchers = {
             projects: 'axosoft projects',
             project: 'axosoft project (.*)',
@@ -182,17 +185,13 @@ module.exports = function (robot) {
             addFeature: 'axosoft add ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' "(.*)" to (.*)',
             addBug: 'axosoft add ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' "(.*)" to (.*)'
         };
-        console.log("after matchers");
-
 
     };
 
     var forgetResponders = function () {
 
-
         for (var key in matchers) {
             responders.remove(matchers[key]);
-            //robot.forget(matchers[key]);
         }
 
     };
@@ -433,9 +432,8 @@ module.exports = function (robot) {
     };
 
     setupApi();
-    setupMatchers();
-    setupResponders();
-    console.log("Initial responders", responders.responders());
+    //setupMatchers();
+    //setupResponders();
 
     /**
      * Returns the full URL the user must visit to authenticate the app
@@ -785,8 +783,6 @@ module.exports = function (robot) {
             setupMatchers();
             setupResponders();
 
-            console.log("responders after setup", responders.responders());
-
             msg.send('I\'m all set up!');
         });
 
@@ -794,7 +790,7 @@ module.exports = function (robot) {
 
     robot.respond(/test/, function (msg) {
         //msg.send(JSON.stringify(responders.responders()));
-msg.send(JSON.stringify(robot.listeners));
+        msg.send(JSON.stringify(robot.listeners));
 
     })
 

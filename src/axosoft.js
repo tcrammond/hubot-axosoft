@@ -152,6 +152,18 @@ module.exports = function (robot) {
 
     };
 
+    var itemTypeFromString = function (text, plural) {
+        plural = plural || false;
+        var key = (plural ? 'plural' : 'singular');
+
+        switch (text) {
+            case 'features':
+                return CONFIG.ITEM_NAMES.features[key];
+            case 'defects':
+                return CONFIG.ITEM_NAMES.defects[key];
+        }
+    };
+
     var forgetResponders = function () {
 
         for (var key in matchers) {
@@ -216,7 +228,7 @@ module.exports = function (robot) {
                     };
 
                 processedLogs[log.user.name].items.push({
-                    duration: log.work_done.duration,
+                    duration: log.work_done.duration_minutes,
                     id: log.item.id,
                     name: log.item.name,
                     type: log.item.item_type
@@ -239,7 +251,7 @@ module.exports = function (robot) {
                                 duration: 0,
                                 id: log.id,
                                 name: log.name,
-                                type: log.item_type
+                                type: log.type
                             };
 
                         newLogs[log.id].duration += log.duration;
@@ -277,7 +289,7 @@ module.exports = function (robot) {
                     // Items
                     for (var itemId in processedLogs[user].items) {
                         var item = processedLogs[user].items[itemId];
-                        message += util.bold('[' + item.id + ']') + ' ' + item.name + ' - ' + util.minsToHours(item.duration, true) + '\n';
+                        message += '[' + itemTypeFromString(item.type) + '][' + item.id + '] ' + item.name + ' - ' + util.minsToHours(item.duration, true) + '\n';
                     }
 
                     // Total
@@ -345,7 +357,7 @@ module.exports = function (robot) {
                 var projects = robot.brain.get('projectIndex');
                 var projectName = getNameById(data.data.project.id, projects);
 
-                msg.send('Feature "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
+                msg.send(CONFIG.ITEM_NAMES.features.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
                 msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=features');
             }, function (error) {
                 var response = handleApiError(msg, error);
@@ -360,7 +372,7 @@ module.exports = function (robot) {
                 var projects = robot.brain.get('projectIndex');
                 var projectName = getNameById(data.data.project.id, projects);
 
-                msg.send('Bug "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
+                msg.send(CONFIG.ITEM_NAMES.defects.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
                 msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=defects');
             }, function (error) {
                 var response = handleApiError(msg, error);

@@ -161,6 +161,15 @@ module.exports = function (robot) {
                 return CONFIG.ITEM_NAMES.features[key];
             case 'defects':
                 return CONFIG.ITEM_NAMES.defects[key];
+            case 'tasks':
+                return CONFIG.ITEM_NAMES.tasks[key];
+            case 'incidents':
+                return CONFIG.ITEM_NAMES.incidents[key];
+            case 'work_logs':
+                return CONFIG.ITEM_NAMES.work_logs[key];
+            default:
+                return 'Unknown';
+
         }
     };
 
@@ -483,7 +492,8 @@ module.exports = function (robot) {
                 features: body.data.item_types.features.labels,
                 defects: body.data.item_types.defects.labels,
                 tasks: body.data.item_types.tasks.labels,
-                work_logs: body.data.item_types.work_logs.labels
+                work_logs: body.data.item_types.work_logs.labels,
+                incidents: body.data.item_types.incidents.labels
             };
 
             deferred.resolve(data);

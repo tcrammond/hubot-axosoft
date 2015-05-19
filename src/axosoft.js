@@ -22,7 +22,7 @@ var configFilePath = path.resolve(__dirname + '/../axosoft.config.json');
 var util = Util();
 
 // Bits and pieces of a responder adder/remover from http://taylor.fausak.me/2013/02/24/hacking-hubot-with-hubot/
-function Responders (robot) {
+function Responders(robot) {
     this.robot = robot;
     this.robot.brain.data.responders = [];
 }
@@ -191,6 +191,22 @@ module.exports = function (robot) {
     };
 
     /**
+     * Returns a formatted message, displaying the item's basic details and a link to it on Axosoft.
+     * @param item
+     * @returns {string}
+     */
+    var displayItemBasicDetails = function (item) {
+        var projects = robot.brain.get('projectIndex');
+        var projectName = getNameById(item.project.id, projects);
+
+        return '\n' + item.name + '\n' +
+            'Project: ' + projectName + '\n' +
+            'Description: \n' +
+            item.description + '\n' +
+            'URL: ' + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + item.id + '&type=' + item.item_type;
+    };
+
+    /**
      * Removes all known axosoft responders from hubot. Use when re-initializing
      */
     var forgetResponders = function () {
@@ -254,9 +270,9 @@ module.exports = function (robot) {
             var processLogUser = function (log) {
 
                 processedLogs[log.user.name] = processedLogs[log.user.name] || {
-                        items: [],
-                        totalDuration: 0
-                    };
+                    items: [],
+                    totalDuration: 0
+                };
 
                 processedLogs[log.user.name].items.push({
                     duration: log.work_done.duration_minutes,
@@ -279,11 +295,11 @@ module.exports = function (robot) {
                         var log = user.items[i];
 
                         newLogs[log.id] = newLogs[log.id] || {
-                                duration: 0,
-                                id: log.id,
-                                name: log.name,
-                                type: log.type
-                            };
+                            duration: 0,
+                            id: log.id,
+                            name: log.name,
+                            type: log.type
+                        };
 
                         newLogs[log.id].duration += log.duration;
                         total += log.duration;
@@ -309,7 +325,7 @@ module.exports = function (robot) {
                     return;
                 }
 
-                var message = util.bold('Work from ' + fromDate, true);
+                var message = '\nWork from ' + fromDate + '\n';
                 var grandTotal = 0;
 
                 for (var user in processedLogs) {
@@ -394,15 +410,8 @@ module.exports = function (robot) {
         responders.add(matchers.feature, function (msg) {
 
             getFeature(msg.match[1]).then(function (data) {
-                var projects = robot.brain.get('projectIndex');
-                var projectName = getNameById(data.data.project.id, projects);
-
-                var msg = data.data.name + '\n' +
-                    'Project: ' + projectName + '\n' +
-                    data.data.description;
-
-                msg.send(CONFIG.ITEM_NAMES.features.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
-                msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=features');
+                var message = displayItemBasicDetails(data.data);
+                msg.send(message);
             }, function (error) {
                 var response = handleApiError(msg, error);
                 msg.send(response);
@@ -417,11 +426,8 @@ module.exports = function (robot) {
         responders.add(matchers.bug, function (msg) {
 
             getDefect(msg.match[1]).then(function (data) {
-                var projects = robot.brain.get('projectIndex');
-                var projectName = getNameById(data.data.project.id, projects);
-
-                msg.send(CONFIG.ITEM_NAMES.defects.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
-                msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=defects');
+                var message = displayItemBasicDetails(data.data);
+                msg.send(message);
             }, function (error) {
                 var response = handleApiError(msg, error);
                 msg.send(response);
@@ -436,11 +442,8 @@ module.exports = function (robot) {
         responders.add(matchers.task, function (msg) {
 
             getTask(msg.match[1]).then(function (data) {
-                var projects = robot.brain.get('projectIndex');
-                var projectName = getNameById(data.data.project.id, projects);
-
-                msg.send(CONFIG.ITEM_NAMES.tasks.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
-                msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=tasks');
+                var message = displayItemBasicDetails(data.data);
+                msg.send(message);
             }, function (error) {
                 var response = handleApiError(msg, error);
                 msg.send(response);
@@ -455,11 +458,8 @@ module.exports = function (robot) {
         responders.add(matchers.incident, function (msg) {
 
             getIncident(msg.match[1]).then(function (data) {
-                var projects = robot.brain.get('projectIndex');
-                var projectName = getNameById(data.data.project.id, projects);
-
-                msg.send(CONFIG.ITEM_NAMES.incidents.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
-                msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=incidents');
+                var message = displayItemBasicDetails(data.data);
+                msg.send(message);
             }, function (error) {
                 var response = handleApiError(msg, error);
                 msg.send(response);
@@ -514,7 +514,7 @@ module.exports = function (robot) {
 
             createIncident(title, project).then(function (data) {
                 msg.send('I\'ve created the ' + CONFIG.ITEM_NAMES.incidents.singular + '. It\'s Number is ' + data.number + ' (ID ' + data.id + ') and it can be found here:\n'
-                    + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=incidents');
+                + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=incidents');
             }, function (error) {
                 msg.send('Sorry, I couldn\'t create the ' + CONFIG.ITEM_NAMES.incidents.singular + '. ' + error);
             });
@@ -532,7 +532,7 @@ module.exports = function (robot) {
 
             createTask(title, project).then(function (data) {
                 msg.send('I\'ve created the ' + CONFIG.ITEM_NAMES.tasks.singular + '. It\'s ID is ' + data.id + ' and it can be found here:\n'
-                    + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=features');
+                + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=features');
             }, function (error) {
                 msg.send('Sorry, I couldn\'t create the ' + CONFIG.ITEM_NAMES.tasks.singular + '. ' + error);
             });
@@ -579,7 +579,7 @@ module.exports = function (robot) {
 
     /*
 
-        API
+     API
 
      */
 
@@ -946,8 +946,8 @@ module.exports = function (robot) {
     };
 
     /*
-    Get the name of a project by id, from the given array
-    TODO: should be in utils
+     Get the name of a project by id, from the given array
+     TODO: should be in utils
      */
     var getNameById = function (id, projects) {
 
@@ -999,7 +999,7 @@ module.exports = function (robot) {
 
     /*
 
-        App
+     App
 
      */
 

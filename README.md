@@ -80,7 +80,7 @@ Note that your title must be in quotes.
 
 ### Find feature by ID
 ```
-hubot feature ID
+hubot axosoft feature ID
 ```
 Returns some information about the bug with the given ID. If you use a different name for features you should use that name instead.
 
@@ -103,7 +103,7 @@ Note that your title must be in quotes.
 
 ### Find bug by ID
 ```
-hubot bug ID
+hubot axosoft bug ID
 ```
 Returns some information about the bug with the given ID. If you use a different name for bugs you should use that name instead.
 
@@ -116,7 +116,7 @@ Note that your title must be in quotes.
 
 ### Find ticket by ID
 ```
-hubot ticket ID
+hubot axosoft ticket ID
 ```
 Returns some information about the bug with the given ID. If you use a different name for tickets you should use that name instead.
 

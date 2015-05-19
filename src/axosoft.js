@@ -21,19 +21,17 @@ var configFilePath = path.resolve(__dirname + '/../axosoft.config.json');
 
 var util = Util();
 
+// Bits and pieces of a responder adder/remover from http://taylor.fausak.me/2013/02/24/hacking-hubot-with-hubot/
 function Responders (robot) {
     this.robot = robot;
     this.robot.brain.data.responders = [];
 }
-
 Responders.prototype.responders = function () {
     return this.robot.brain.data.responders;
 };
-
 Responders.prototype.responder = function (pattern) {
     return this.responders()[pattern];
 };
-
 Responders.prototype.remove = function (pattern) {
     var responder;
     responder = this.responder(pattern);
@@ -54,7 +52,6 @@ Responders.prototype.remove = function (pattern) {
     }
     return responder;
 };
-
 Responders.prototype.add = function (pattern, callback) {
     var error, eval_callback, eval_pattern;
     try {
@@ -125,6 +122,10 @@ module.exports = function (robot) {
     }, JSON.parse(fs.readFileSync(configFilePath, 'utf8')));
     var API_URL = '';
     var API = {};
+
+    /**
+     * Constructs the API object, based on the user's URL / details
+     */
     var setupApi = function () {
         API_URL = CONFIG.AXOSOFT_URL + CONFIG.API_VERSION;
         API = {
@@ -140,6 +141,10 @@ module.exports = function (robot) {
     };
 
     var matchers = {};
+
+    /**
+     * Updates the `matchers` object with regex strings, based on the user's item type labels.
+     */
     var setupMatchers = function () {
 
         matchers = {
@@ -158,6 +163,12 @@ module.exports = function (robot) {
 
     };
 
+    /**
+     * Returns the user's custom item type label for the given item type
+     * @param {string} text The item type
+     * @param {bool} [plural] Whether to return the plural of the item type. Default: false
+     * @returns {*}
+     */
     var itemTypeFromString = function (text, plural) {
         plural = plural || false;
         var key = (plural ? 'plural' : 'singular');
@@ -179,18 +190,23 @@ module.exports = function (robot) {
         }
     };
 
+    /**
+     * Removes all known axosoft responders from hubot. Use when re-initializing
+     */
     var forgetResponders = function () {
-
         for (var key in matchers) {
             responders.remove(matchers[key]);
         }
-
     };
 
+    /**
+     * Sets up all Axosoft responders that depend on being authenticated / set up.
+     */
     var setupResponders = function () {
 
-        /*
-         WORK LOGS
+        /**
+         * Command: WORK LOG REPORT
+         * Returns a small work log report, grouped by user and item ID.
          */
         responders.add(matchers.workLogsReport, function (msg) {
 
@@ -321,8 +337,9 @@ module.exports = function (robot) {
 
         });
 
-        /*
-         * Lists all of the projects and their ID for aliasing
+        /**
+         * Command: PROJECTS
+         * Returns a list of project IDs and names. Only intended for dev use.
          */
         responders.add(matchers.projects, function (msg) {
 
@@ -345,6 +362,10 @@ module.exports = function (robot) {
         });
 
         //TODO: make this do something useful!
+        /**
+         * Command: PROJECT
+         * Returns information about the given project
+         */
         responders.add(matchers.project, function (msg) {
 
             if (!authenticated(msg)) return;
@@ -366,6 +387,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: FEATURE
+         * Returns some basic info about the given feature ID
+         */
         responders.add(matchers.feature, function (msg) {
 
             getFeature(msg.match[1]).then(function (data) {
@@ -385,6 +410,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: FEATURE
+         * Returns some basic info about the given bug ID
+         */
         responders.add(matchers.bug, function (msg) {
 
             getDefect(msg.match[1]).then(function (data) {
@@ -400,6 +429,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: TASK
+         * Returns some basic info about the given task ID
+         */
         responders.add(matchers.task, function (msg) {
 
             getTask(msg.match[1]).then(function (data) {
@@ -415,6 +448,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: INCIDENT
+         * Returns some basic info about the given incident ID
+         */
         responders.add(matchers.incident, function (msg) {
 
             getIncident(msg.match[1]).then(function (data) {
@@ -430,6 +467,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: ADD DEFECT
+         * Creates a new defect with the given title, adding it to the given project
+         */
         responders.add(matchers.addBug, function (msg) {
 
             var title = msg.match[1];
@@ -444,6 +485,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: ADD FEATURE
+         * Creates a new feature with the given title, adding it to the given project
+         */
         responders.add(matchers.addFeature, function (msg) {
 
             var title = msg.match[1];
@@ -458,6 +503,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: ADD INCIDENT
+         * Creates a new incident with the given title, adding it to the given project
+         */
         responders.add(matchers.addIncident, function (msg) {
 
             var title = msg.match[1];
@@ -472,6 +521,10 @@ module.exports = function (robot) {
 
         });
 
+        /**
+         * Command: ADD INCIDENT
+         * Creates a new incident with the given title, adding it to the given project
+         */
         responders.add(matchers.addTask, function (msg) {
 
             var title = msg.match[1];
@@ -487,8 +540,6 @@ module.exports = function (robot) {
         });
     };
 
-    setupApi();
-
     /**
      * Returns the full URL the user must visit to authenticate the app
      * @returns {string|boolean} URL or false on error
@@ -502,6 +553,10 @@ module.exports = function (robot) {
             'read%20write&expiring=false&state=' + CONFIG.AXOSOFT_URL.replace('https://', '');
     };
 
+    /**
+     * Returns a message containing the authentication URL for hubot-axosoft
+     * @returns {string}
+     */
     var needAccessTokenResponse = function () {
         return 'Please visit this URL to authorize me through Axosoft: \n' + getAuthenticateUrl()
     };
@@ -523,9 +578,17 @@ module.exports = function (robot) {
     };
 
     /*
-     * Gets the projects for a company
+
+        API
+
      */
 
+    // TODO: Let's refactor this into a separate module after the contest
+
+    /**
+     * Returns the a list of the user's projects. Child projects will be flattened into a single array with the parents.
+     * @returns {array}
+     */
     var getProjects = function () {
         var deferred = q.defer();
         robot.http(API.PROJECTS + '?access_token=' + CONFIG.ACCESS_TOKEN).get()(function (err, res, body) {
@@ -545,6 +608,10 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    /**
+     * Returns the user's system options, containing item type labels etc.
+     * @returns {object}
+     */
     var getSystemOptions = function () {
         var deferred = q.defer();
         var data = {};
@@ -570,6 +637,14 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    //TODO: Consolidate into one create item function in the API module
+
+    /**
+     * Creates a new defect
+     * @param {string} title The title of the defect
+     * @param {string} project The project the defect should be added to
+     * @returns {object} Promise resolving to the new defect object or an error message
+     */
     var createDefect = function (title, project) {
         var deferred = q.defer();
 
@@ -610,6 +685,12 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    /**
+     * Creates a new feature
+     * @param {string} title The title of the feature
+     * @param {string} project The project the feature should be added to
+     * @returns {object} Promise resolving to the new feature object or an error message
+     */
     var createFeature = function (title, project) {
         var deferred = q.defer();
 
@@ -650,6 +731,12 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    /**
+     * Creates a new incident
+     * @param {string} title The title of the incident
+     * @param {string} project The project the incident should be added to
+     * @returns {object} Promise resolving to the new incident object or an error message
+     */
     var createIncident = function (title, project) {
         var deferred = q.defer();
 
@@ -690,6 +777,12 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    /**
+     * Creates a new task
+     * @param {string} title The title of the task
+     * @param {string} project The project the task should be added to
+     * @returns {object} Promise resolving to the new task object or an error message
+     */
     var createTask = function (title, project) {
         var deferred = q.defer();
 
@@ -730,8 +823,10 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
-    /*
-     * Flattens the list of projects to get the children out
+    /**
+     * Flattens a list of projects. Parent projects and their children will be returned in the same array.
+     * @param {Array} projects Array of hierarchical projects
+     * @returns {Array} Flattened projects
      */
     var flattenProjects = function (projects) {
 
@@ -750,6 +845,11 @@ module.exports = function (robot) {
 
     };
 
+    /**
+     * Returns the feature with the given ID
+     * @param {number} id Feature ID
+     * @returns {object} Promise resolving to the new feature object or an error message
+     */
     var getFeature = function (id) {
         var deferred = q.defer();
 
@@ -770,6 +870,11 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    /**
+     * Returns the defect with the given ID
+     * @param {number} id Defect ID
+     * @returns {object} Promise resolving to the new defect object or an error message
+     */
     var getDefect = function (id) {
         var deferred = q.defer();
 
@@ -790,6 +895,11 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    /**
+     * Returns the task with the given ID
+     * @param {number} id Task ID
+     * @returns {object} Promise resolving to the new task object or an error message
+     */
     var getTask = function (id) {
         var deferred = q.defer();
 
@@ -810,6 +920,11 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    /**
+     * Returns the incident with the given ID
+     * @param {number} id Incident ID
+     * @returns {object} Promise resolving to the new incident object or an error message
+     */
     var getIncident = function (id) {
         var deferred = q.defer();
 
@@ -830,12 +945,10 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
-    var getIdByName = function (name, projects) {
-
-        return projects[name] || null;
-
-    };
-
+    /*
+    Get the name of a project by id, from the given array
+    TODO: should be in utils
+     */
     var getNameById = function (id, projects) {
 
         var projectName = 'Unknown project';
@@ -849,6 +962,14 @@ module.exports = function (robot) {
         return projectName;
     };
 
+    /**
+     * Returns whether the hubot-axosoft instance is authenticated. If false, the {msg} will send an error message back
+     * to the user.
+     * - Checks that the AXOSOFT_URL is set
+     * - Checks that an ACCESS_TOKEN is present
+     * @param {object} msg Hubot message
+     * @returns {boolean}
+     */
     var authenticated = function (msg) {
 
         // The URL must always be set.
@@ -872,13 +993,20 @@ module.exports = function (robot) {
      * @param {object} error The error stuff
      */
     var handleApiError = function (msg, error) {
-
         return 'Oops, something unexpected happened. ' + error;
-
     };
 
+
     /*
-     AUTHENTICATION
+
+        App
+
+     */
+
+    setupApi();
+
+    /**
+     * Command: SET URL
      */
     robot.respond(/axosoft set url (.*)/, function (msg) {
         var url = (msg.match[1] || '').trim();
@@ -908,6 +1036,9 @@ module.exports = function (robot) {
 
     });
 
+    /**
+     * Command: SET TOKEN
+     */
     robot.respond(/axosoft set token (.*)/, function (msg) {
         var token = (msg.match[1] || '').trim();
         if (!token.length) {
@@ -927,6 +1058,9 @@ module.exports = function (robot) {
 
     });
 
+    /**
+     * Command: AUTHENTICATE
+     */
     robot.respond(/axosoft authenticate/, function (msg) {
 
         // The URL must always be set.
@@ -939,9 +1073,10 @@ module.exports = function (robot) {
         msg.send(needAccessTokenResponse());
     });
 
-    /*
-     * Stores the list of project names against their ID in the brain, so that
-     * commands can reference the project name, and not the ID.
+    /**
+     * Command: SETUP
+     * Retrieves projects and system options, storing them in hubot's brain and the config, respectively.
+     * Sets up the responders each time it is run with the new item type labels.
      */
     robot.respond(/axosoft setup/, function (msg) {
 

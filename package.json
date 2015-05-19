@@ -1,6 +1,6 @@
 {
   "name": "hubot-axosoft",
-  "description": "A hubot script that helps you quickly grab data from Axosoft, an agile project management solution.",
+  "description": "A hubot script that helps you quickly grab data from and add new items to Axosoft, an agile project management solution.",
   "version": "0.2.7",
   "author": "Tyler Crammond <@TylerCrammond>",
   "license": "MIT",

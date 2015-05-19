@@ -71,13 +71,6 @@ Total: 1.23hr
 Grand total: 1.73hr
 ```
 
-### Add new feature
-```
-hubot add feature "TITLE" to PROJECT
-```
-Adds a new feature to the specified project. If you use a different name for features you should use that name instead.
-Note that your title must be in quotes. 
-
 ### Find feature by ID
 ```
 hubot axosoft feature ID
@@ -90,15 +83,14 @@ Implement new home page design
 Project: Awesome Web App
 Description:
 Implement Chris' new design for our home page.
-
 URL: https://myurl.axosoft.com/viewitem.aspx?id=99&type=features
 ```
 
-### Add new bug
+### Add new feature
 ```
-hubot add bug "TITLE" to PROJECT
+hubot add feature "TITLE" to PROJECT
 ```
-Adds a new bug to the specified project. If you use a different name for bugs you should use that name instead.
+Adds a new feature to the specified project. If you use a different name for features you should use that name instead.
 Note that your title must be in quotes. 
 
 ### Find bug by ID
@@ -107,11 +99,11 @@ hubot axosoft bug ID
 ```
 Returns some information about the bug with the given ID. If you use a different name for bugs you should use that name instead.
 
-### Add new ticket
+### Add new bug
 ```
-hubot add ticket "TITLE" to PROJECT
+hubot add bug "TITLE" to PROJECT
 ```
-Adds a new ticket to the specified project. If you use a different name for tickets you should use that name instead.
+Adds a new bug to the specified project. If you use a different name for bugs you should use that name instead.
 Note that your title must be in quotes. 
 
 ### Find ticket by ID
@@ -119,6 +111,13 @@ Note that your title must be in quotes.
 hubot axosoft ticket ID
 ```
 Returns some information about the bug with the given ID. If you use a different name for tickets you should use that name instead.
+
+### Add new ticket
+```
+hubot add ticket "TITLE" to PROJECT
+```
+Adds a new ticket to the specified project. If you use a different name for tickets you should use that name instead.
+Note that your title must be in quotes. 
 
 #### Misc.
 License: MIT

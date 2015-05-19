@@ -133,6 +133,8 @@ module.exports = function (robot) {
             PROJECTS: API_URL + '/projects',
             DEFECTS: API_URL + '/defects',
             FEATURES: API_URL + '/features',
+            INCIDENTS: API_URL + '/incidents',
+            TASKS: API_URL + '/tasks',
             SYSTEM_OPTIONS: API_URL + '/settings/system_options'
         };
     };
@@ -146,8 +148,12 @@ module.exports = function (robot) {
             workLogsReport: 'axosoft ' + CONFIG.ITEM_NAMES.work_logs.plural.toLowerCase() + ' from (.*)( to (.*))?',
             feature: 'axosoft ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' (.*)',
             bug: 'axosoft ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' (.*)',
+            task: 'axosoft ' + CONFIG.ITEM_NAMES.tasks.singular.toLowerCase() + ' (.*)',
+            incident: 'axosoft ' + CONFIG.ITEM_NAMES.incidents.singular.toLowerCase() + ' (.*)',
             addFeature: 'axosoft add ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' "(.*)" to (.*)',
-            addBug: 'axosoft add ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' "(.*)" to (.*)'
+            addBug: 'axosoft add ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' "(.*)" to (.*)',
+            addIncident: 'axosoft add ' + CONFIG.ITEM_NAMES.incidents.singular.toLowerCase() + ' "(.*)" to (.*)',
+            addTask: 'axosoft add ' + CONFIG.ITEM_NAMES.tasks.singular.toLowerCase() + ' "(.*)" to (.*)'
         };
 
     };
@@ -366,6 +372,10 @@ module.exports = function (robot) {
                 var projects = robot.brain.get('projectIndex');
                 var projectName = getNameById(data.data.project.id, projects);
 
+                var msg = data.data.name + '\n' +
+                    'Project: ' + projectName + '\n' +
+                    data.data.description;
+
                 msg.send(CONFIG.ITEM_NAMES.features.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
                 msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=features');
             }, function (error) {
@@ -383,6 +393,36 @@ module.exports = function (robot) {
 
                 msg.send(CONFIG.ITEM_NAMES.defects.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
                 msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=defects');
+            }, function (error) {
+                var response = handleApiError(msg, error);
+                msg.send(response);
+            });
+
+        });
+
+        responders.add(matchers.task, function (msg) {
+
+            getTask(msg.match[1]).then(function (data) {
+                var projects = robot.brain.get('projectIndex');
+                var projectName = getNameById(data.data.project.id, projects);
+
+                msg.send(CONFIG.ITEM_NAMES.tasks.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
+                msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=tasks');
+            }, function (error) {
+                var response = handleApiError(msg, error);
+                msg.send(response);
+            });
+
+        });
+
+        responders.add(matchers.incident, function (msg) {
+
+            getIncident(msg.match[1]).then(function (data) {
+                var projects = robot.brain.get('projectIndex');
+                var projectName = getNameById(data.data.project.id, projects);
+
+                msg.send(CONFIG.ITEM_NAMES.incidents.singular + ' "' + msg.match[1] + '" is "' + data.data.name + '" in project "' + projectName + '"');
+                msg.send(CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + msg.match[1] + '&type=incidents');
             }, function (error) {
                 var response = handleApiError(msg, error);
                 msg.send(response);
@@ -414,6 +454,34 @@ module.exports = function (robot) {
                 + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=features');
             }, function (error) {
                 msg.send('Sorry, I couldn\'t create the ' + CONFIG.ITEM_NAMES.features.singular + '. ' + error);
+            });
+
+        });
+
+        responders.add(matchers.addIncident, function (msg) {
+
+            var title = msg.match[1];
+            var project = msg.match[2];
+
+            createIncident(title, project).then(function (data) {
+                msg.send('I\'ve created the ' + CONFIG.ITEM_NAMES.incidents.singular + '. It\'s Number is ' + data.number + ' (ID ' + data.id + ') and it can be found here:\n'
+                    + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=incidents');
+            }, function (error) {
+                msg.send('Sorry, I couldn\'t create the ' + CONFIG.ITEM_NAMES.incidents.singular + '. ' + error);
+            });
+
+        });
+
+        responders.add(matchers.addTask, function (msg) {
+
+            var title = msg.match[1];
+            var project = msg.match[2];
+
+            createTask(title, project).then(function (data) {
+                msg.send('I\'ve created the ' + CONFIG.ITEM_NAMES.tasks.singular + '. It\'s ID is ' + data.id + ' and it can be found here:\n'
+                    + CONFIG.AXOSOFT_URL + '/viewitem.aspx?id=' + data.id + '&type=features');
+            }, function (error) {
+                msg.send('Sorry, I couldn\'t create the ' + CONFIG.ITEM_NAMES.tasks.singular + '. ' + error);
             });
 
         });
@@ -582,6 +650,86 @@ module.exports = function (robot) {
         return deferred.promise;
     };
 
+    var createIncident = function (title, project) {
+        var deferred = q.defer();
+
+        var projects = robot.brain.get('projectIndex');
+        var projectId = util.getIdByName(project, projects);
+
+        if (projectId === null || !projectId) {
+            deferred.reject('I\'m not familiar with any projects called "' + project + '". Try refreshing my memory with "hubot axosoft setup".');
+            return deferred.promise;
+        }
+
+        var defect = {
+            notify_customer: false,
+            item: {
+                name: title,
+                project: {
+                    id: projectId
+                }
+            }
+        };
+
+        robot.http(API.INCIDENTS + '?access_token=' + CONFIG.ACCESS_TOKEN)
+            .header('Content-Type', 'application/json')
+            .post(JSON.stringify(defect))(function (err, res, body) {
+
+            body = JSON.parse(body);
+
+            if (err) {
+                deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body.data);
+            }
+
+        });
+
+        return deferred.promise;
+    };
+
+    var createTask = function (title, project) {
+        var deferred = q.defer();
+
+        var projects = robot.brain.get('projectIndex');
+        var projectId = util.getIdByName(project, projects);
+
+        if (projectId === null || !projectId) {
+            deferred.reject('I\'m not familiar with any projects called "' + project + '". Try refreshing my memory with "hubot axosoft setup".');
+            return deferred.promise;
+        }
+
+        var defect = {
+            notify_customer: false,
+            item: {
+                name: title,
+                project: {
+                    id: projectId
+                }
+            }
+        };
+
+        robot.http(API.TASKS + '?access_token=' + CONFIG.ACCESS_TOKEN)
+            .header('Content-Type', 'application/json')
+            .post(JSON.stringify(defect))(function (err, res, body) {
+
+            body = JSON.parse(body);
+
+            if (err) {
+                deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body.data);
+            }
+
+        });
+
+        return deferred.promise;
+    };
+
     /*
      * Flattens the list of projects to get the children out
      */
@@ -626,6 +774,46 @@ module.exports = function (robot) {
         var deferred = q.defer();
 
         robot.http(API_URL + '/defects/' + id + '?access_token=' + CONFIG.ACCESS_TOKEN).get()(function (err, res, body) {
+
+            body = JSON.parse(body);
+
+            if (err) {
+                deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body);
+            }
+
+        });
+
+        return deferred.promise;
+    };
+
+    var getTask = function (id) {
+        var deferred = q.defer();
+
+        robot.http(API_URL + '/tasks/' + id + '?access_token=' + CONFIG.ACCESS_TOKEN).get()(function (err, res, body) {
+
+            body = JSON.parse(body);
+
+            if (err) {
+                deferred.reject(err);
+            } else if (body.error_description) {
+                deferred.reject(body.error_description);
+            } else {
+                deferred.resolve(body);
+            }
+
+        });
+
+        return deferred.promise;
+    };
+
+    var getIncident = function (id) {
+        var deferred = q.defer();
+
+        robot.http(API_URL + '/incidents/' + id + '?access_token=' + CONFIG.ACCESS_TOKEN).get()(function (err, res, body) {
 
             body = JSON.parse(body);
 

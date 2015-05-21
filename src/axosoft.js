@@ -154,12 +154,18 @@ module.exports = function (robot) {
             feature: 'axosoft ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' (.*)',
             bug: 'axosoft ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' (.*)',
             task: 'axosoft ' + CONFIG.ITEM_NAMES.tasks.singular.toLowerCase() + ' (.*)',
-            incident: 'axosoft ' + CONFIG.ITEM_NAMES.incidents.singular.toLowerCase() + ' (.*)',
             addFeature: 'axosoft add ' + CONFIG.ITEM_NAMES.features.singular.toLowerCase() + ' "(.*)" to (.*)',
             addBug: 'axosoft add ' + CONFIG.ITEM_NAMES.defects.singular.toLowerCase() + ' "(.*)" to (.*)',
-            addIncident: 'axosoft add ' + CONFIG.ITEM_NAMES.incidents.singular.toLowerCase() + ' "(.*)" to (.*)',
             addTask: 'axosoft add ' + CONFIG.ITEM_NAMES.tasks.singular.toLowerCase() + ' "(.*)" to (.*)'
         };
+
+        if (CONFIG.ITEM_NAMES.incidents && CONFIG.ITEM_NAMES.incidents.singular) {
+            matchers.incident = 'axosoft ' + CONFIG.ITEM_NAMES.incidents.singular.toLowerCase() + ' (.*)';
+            matchers.addIncident = 'axosoft add ' + CONFIG.ITEM_NAMES.incidents.singular.toLowerCase() + ' "(.*)" to (.*)';
+        } else {
+            matchers.incident = '(?=a)b';
+            matchers.addIncident = '(?=a)b';
+        }
 
     };
 

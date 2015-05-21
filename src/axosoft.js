@@ -627,9 +627,12 @@ module.exports = function (robot) {
                 features: body.data.item_types.features.labels,
                 defects: body.data.item_types.defects.labels,
                 tasks: body.data.item_types.tasks.labels,
-                work_logs: body.data.item_types.work_logs.labels,
-                incidents: body.data.item_types.incidents.labels
+                work_logs: body.data.item_types.work_logs.labels
             };
+
+            if (body.data.item_types.incidents) {
+                data.incidents = body.data.item_types.incidents.labels;
+            }
 
             deferred.resolve(data);
         });

@@ -1,5 +1,7 @@
 # hubot-axosoft
 
+**NOTE:** Probably doesn't work anymore because the Axosoft account was associated with this integration was cancelled by Axosoft.
+
 ![Hubot Logo](http://i.imgur.com/pp7scrv.png)
 
 A [hubot](https://hubot.github.com/) script that helps you quickly grab data from and add new items to [Axosoft, an agile project management tool](http://www.axosoft.com). 
